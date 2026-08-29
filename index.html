@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AwakeMUD Colour Codes Preview</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    #user-input {
+      width: 100%;
+      padding: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    #raw-preview-toggle {
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    #preview-container {
+      background-color: #000000;
+      color: #ffffff;
+      padding: 15px;
+      font-family: monospace;
+      font-size: 16px;
+      min-height: 54px;
+      margin-top: 10px;
+      border-radius: 4px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+    }
+    #counter-display {
+      font-size: 14px;
+      color: #555;
+      margin-top: 5px;
+    }
+    #matrix-container {
+      background-color: #000000;
+      padding: 15px;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      border-radius: 4px;
+      margin-top: 20px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .matrix-row {
+      margin-bottom: 4px;
+    }
+    .matrix-cell {
+      display: inline-block;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <h3>AwakeMUD Colour Code Preview</h3>
+  <input
+    type="text"
+    id="user-input"
+    placeholder="Enter your string here..."
+  />
+
+  <div id="counter-display">Restring length: 0 / 80</div>
+
+  <div id="preview-container"></div>
+  <br />
+  <div>
+    You can use all the usual MUD colours (references below). The preview 
+    will be updated in real time, but please note this is an approximation
+    of the MUD colours and, depending on your client, browser, monitor, etc,
+    the preview might (probably might) look slightly different compared to
+    how it would appear in-game (in Mudlet, and so on).
+  </div>
+  <br />
+  <label>
+    <input type="checkbox" id="raw-preview-toggle">
+    Check here to display the preview as a sharable string for OSAY, TELL etc.
+  </label>
+
+  <div id="matrix-container"></div>
+
+  <script>
+    const inputField = document.getElementById('user-input');
+    const rawPreviewToggle = document.getElementById('raw-preview-toggle');
+    const previewContainer = document.getElementById('preview-container');
+    const counterDisplay = document.getElementById('counter-display');
+    const matrixContainer = document.getElementById('matrix-container');
+
+    const colourValues = new Array(0, 95, 135, 175, 215, 255);
+
+    const colourMappings = {
+      NORMAL: 'rgb(192, 192, 192)',
+
+      BLACK: 'rgb(95,95,95)', BOLD_BLACK: 'rgb(135,135,135)',
+      BLUE: 'rgb(0,135,255)', BOLD_BLUE: 'rgb(0,175,255)',
+      CYAN: 'rgb(0,175,175)', BOLD_CYAN: 'rgb(0,255,255)',
+      GREEN: 'rgb(0,175,0)', BOLD_GREEN: 'rgb(0,255,0)',
+      MAGENTA: 'rgb(175,0,175)', BOLD_MAGENTA: 'rgb(255,0,255)',
+      RED: 'rgb(175,0,0)', BOLD_RED: 'rgb(255,0,0)',
+      YELLOW: 'rgb(175,175,0)', BOLD_YELLOW: 'rgb(255,255,0)',
+      WHITE: 'rgb(175,175,175)', BOLD_WHITE: 'rgb(255,255,255)',
+
+      AZURE: 'rgb(0,95,215)', BOLD_AZURE: 'rgb(0,135,255)',
+      JADE: 'rgb(0,175,95)', BOLD_JADE: 'rgb(0,255,135)',
+      ELECTRIC_LIME: 'rgb(95,215,0)', BOLD_LIME: 'rgb(135,255,0)',
+      ORANGE: 'rgb(255,135,0)', BOLD_ORANGE: 'rgb(255,175,0)',
+      PINK: 'rgb(175,0,95)', BOLD_PINK: 'rgb(255,0,135)',
+      TAN: 'rgb(135,95,0)', BOLD_TAN: 'rgb(175,135,95)',
+      VIOLET: 'rgb(95,0,215)', BOLD_VIOLET: 'rgb(135,0,255)'
+    };
+
+    const codeMappings = {
+      '^n': 'NORMAL', '^N': 'NORMAL',
+
+      '^l': 'BLACK', '^L': 'BOLD_BLACK',
+      '^b': 'BLUE', '^B': 'BOLD_BLUE',
+      '^c': 'CYAN', '^C': 'BOLD_CYAN',
+      '^g': 'GREEN', '^G': 'BOLD_GREEN',
+      '^m': 'MAGENTA', '^M': 'BOLD_MAGENTA',
+      '^r': 'RED', '^R': 'BOLD_RED',
+      '^y': 'YELLOW', '^Y': 'BOLD_YELLOW',
+      '^w': 'WHITE', '^W': 'BOLD_WHITE',
+
+      '^a': 'AZURE', '^A': 'BOLD_AZURE',
+      '^j': 'JADE', '^J': 'BOLD_JADE',
+      '^e': 'ELECTRIC_LIME', '^E': 'BOLD_LIME',
+      '^o': 'ORANGE', '^O': 'BOLD_ORANGE',
+      '^p': 'PINK', '^P': 'BOLD_PINK',
+      '^t': 'TAN', '^T': 'BOLD_TAN',
+      '^v': 'VIOLET', '^V': 'BOLD_VIOLET'
+    };
+
+    const escapedCodes = Object.keys(codeMappings)
+      .map(code =>
+        code.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      )
+      .join('|');
+
+    const splitRegex = new RegExp(
+      `(\\^\\[F[0-5]{3}\\]|${escapedCodes}|\\u0000)`,
+      'g'
+    );
+
+    function buildStaticRow(tokens) {
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'matrix-row static-row';
+
+      tokens.forEach(token => {
+        const span = document.createElement('span');
+        span.className = 'matrix-cell';
+
+        const mappedKey = codeMappings[token];
+
+        span.style.color = colourMappings[mappedKey];
+        span.textContent = token;
+
+        rowDiv.appendChild(span);
+      });
+
+      return rowDiv;
+    }
+
+    function generateColorMatrix() {
+      matrixContainer.innerHTML = '';
+
+      matrixContainer.appendChild(buildStaticRow(['^l', '^b', '^c', '^g', '^m', '^r', '^y', '^w']));
+      matrixContainer.appendChild(buildStaticRow(['^L', '^B', '^C', '^G', '^M', '^R', '^Y', '^W']));
+      matrixContainer.appendChild(buildStaticRow(['^a', '^j', '^e', '^o', '^p', '^t', '^v']));
+      matrixContainer.appendChild(buildStaticRow(['^A', '^J', '^E', '^O', '^P', '^T', '^V']));
+
+      for (let r = 0; r <= 5; r++) {
+        for (let g = 0; g <= 5; g++) {
+          const rowDiv = document.createElement('div');
+          rowDiv.className = 'matrix-row';
+
+          for (let b = 0; b <= 5; b++) {
+            const span = document.createElement('span');
+            span.className = 'matrix-cell';
+            const codeDigits = `${r}${g}${b}`;
+
+            if (codeDigits === '000') {
+              span.style.color = 'rgb(95, 95, 95)';
+            } else {
+              const rv = colourValues[r];
+              const gv = colourValues[g];
+              const bv = colourValues[b];
+
+              span.style.color = `rgb(${rv}, ${gv}, ${bv})`;
+            }
+
+            span.textContent = `^[F${codeDigits}]`;
+            rowDiv.appendChild(span);
+          }
+
+          matrixContainer.appendChild(rowDiv);
+        }
+      }
+    }
+
+    function updateCounter(length) {
+      counterDisplay.textContent =
+        `Restring length: ${length} / 80`;
+
+      counterDisplay.style.color =
+        length > 80
+          ? 'rgb(255, 0, 0)'
+          : '#555';
+    }
+
+    function renderRawPreview() {
+      const rawText = inputField.value;
+      const span = document.createElement('span');
+
+      span.style.color = colourMappings.NORMAL;
+      span.textContent = rawText.replace(/\^/g, '^^');
+
+      previewContainer.appendChild(span);
+    }
+
+    function renderColourPreview() {
+      let text = inputField.value;
+
+      text = text.replace(/\^\^/g, '\u0000');
+      text = text.replace(
+        /\^(?!(?:\[F[0-5]{3}\]|[nNLlbBcCgGmMvVrRyYwWaAjJeEoOpPtT]))/g,
+        ''
+      );
+
+      const parts = text.split(splitRegex);
+      let currentCpuColor = colourMappings.NORMAL;
+      let visibleCharacterCount = 0;
+
+      parts.forEach(part => {
+        if (part === '\u0000') {
+          visibleCharacterCount += 1;
+        } else if (
+          !codeMappings.hasOwnProperty(part) &&
+          !(part.startsWith('^[F') && part.endsWith(']')) &&
+          part
+        ) {
+          visibleCharacterCount += part.length;
+        }
+      });
+
+      parts.forEach(part => {
+        if (part === '\u0000') {
+          const span = document.createElement('span');
+
+          span.style.color =
+            visibleCharacterCount > 80
+              ? 'rgb(255, 0, 0)'
+              : currentCpuColor;
+
+          span.textContent = '^';
+          previewContainer.appendChild(span);
+        } else if (codeMappings.hasOwnProperty(part)) {
+          const mappedKey = codeMappings[part];
+
+          currentCpuColor =
+            colourMappings[mappedKey] || colourMappings.NORMAL;
+        } else if (
+          part.startsWith('^[F') &&
+          part.endsWith(']')
+        ) {
+          const digits = part.substring(3, 6);
+
+          if (digits === '000') {
+            currentCpuColor = 'rgb(95, 95, 95)';
+          } else {
+            const r = colourValues[parseInt(digits.charAt(0), 10)];
+            const g = colourValues[parseInt(digits.charAt(1), 10)];
+            const b = colourValues[parseInt(digits.charAt(2), 10)];
+
+            currentCpuColor = `rgb(${r}, ${g}, ${b})`;
+          }
+        } else if (part) {
+          const span = document.createElement('span');
+
+          span.style.color = currentCpuColor;
+          span.textContent = part;
+
+          previewContainer.appendChild(span);
+        }
+      });
+
+      return visibleCharacterCount;
+    }
+
+    function updatePreview() {
+      previewContainer.innerHTML = '';
+
+      if (rawPreviewToggle.checked) {
+        renderRawPreview();
+        return;
+      }
+
+      const visibleCharacterCount = renderColourPreview();
+
+      updateCounter(visibleCharacterCount);
+    }
+
+    function handleInput() {
+      previewContainer.innerHTML = '';
+
+      if (rawPreviewToggle.checked) {
+        renderRawPreview();
+        updateCounter(inputField.value.length);
+        return;
+      }
+
+      const visibleCharacterCount = renderColourPreview();
+
+      updateCounter(visibleCharacterCount);
+    }
+
+    generateColorMatrix();
+
+    inputField.addEventListener('input', handleInput);
+    rawPreviewToggle.addEventListener('change', updatePreview);
+
+    updatePreview();
+  </script>
+
+</body>
+</html>
