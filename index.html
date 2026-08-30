@@ -56,6 +56,11 @@
     .matrix-cell {
       display: inline-block;
       margin-right: 8px;
+      cursor: pointer;
+    }
+    .matrix-cell:hover {
+      text-decoration: underline;
+      filter: brightness(1.25);
     }
   </style>
 </head>
@@ -80,10 +85,21 @@
     how it would appear in-game (in Mudlet, and so on).
   </div>
   <br />
+  <div>
   <label>
     <input type="checkbox" id="raw-preview-toggle">
-    Check here to display the preview as a sharable string for OSAY, TELL etc.
+    Check here to display the preview as a sharable string for <strong>OSAY</strong>,
+    <strong>TELL</strong> etc.
   </label>
+  </div>
+  <br />
+  <div>
+    You can click any of the codes below to copy them into the input box
+    wherever the current position of the cursor is. If any text is currently
+    selected, it will be replaced. If you double click the input text to <em>only</em> 
+    highlight a <code>Fxxx</code> code and click a code below, it should just replace
+    the code without adding extra <code>^[ ]</code> characters.
+  </div>
 
   <div id="matrix-container"></div>
 
@@ -149,6 +165,36 @@
       'g'
     );
 
+    function insertAtCursor(text) {
+      inputField.focus();
+
+      const start = inputField.selectionStart ?? inputField.value.length;
+      const end = inputField.selectionEnd ?? start;
+      const selectedText = inputField.value.slice(start, end);
+      const replacingFCode = /^F[0-5]{3}$/.test(selectedText);
+      let textToInsert = text;
+      let shiftCursor = false;
+
+      if (replacingFCode) {
+        if (text.startsWith('^[F') && text.endsWith(']')) {
+          textToInsert = text.slice(2, -1);
+        }
+
+        shiftCursor =
+          inputField.value.slice(0, start).endsWith('^[') &&
+          inputField.value.slice(end).startsWith(']');
+      }
+
+      inputField.setRangeText(textToInsert, start, end, 'end');
+
+      if (shiftCursor) {
+        const cursorPosition = start + textToInsert.length + 1;
+        inputField.setSelectionRange(cursorPosition, cursorPosition);
+      }
+
+      inputField.dispatchEvent(new Event('input'));
+    }
+
     function buildStaticRow(tokens) {
       const rowDiv = document.createElement('div');
       rowDiv.className = 'matrix-row static-row';
@@ -161,6 +207,11 @@
 
         span.style.color = colourMappings[mappedKey];
         span.textContent = token;
+        span.title = `Insert ${token}`;
+
+        span.addEventListener('click', () => {
+          insertAtCursor(token);
+        });
 
         rowDiv.appendChild(span);
       });
@@ -171,8 +222,8 @@
     function generateColorMatrix() {
       matrixContainer.innerHTML = '';
 
-      matrixContainer.appendChild(buildStaticRow(['^l', '^b', '^c', '^g', '^m', '^r', '^y', '^w']));
-      matrixContainer.appendChild(buildStaticRow(['^L', '^B', '^C', '^G', '^M', '^R', '^Y', '^W']));
+      matrixContainer.appendChild(buildStaticRow(['^l', '^b', '^c', '^g', '^m', '^r', '^y', '^w', '^n']));
+      matrixContainer.appendChild(buildStaticRow(['^L', '^B', '^C', '^G', '^M', '^R', '^Y', '^W', '^N']));
       matrixContainer.appendChild(buildStaticRow(['^a', '^j', '^e', '^o', '^p', '^t', '^v']));
       matrixContainer.appendChild(buildStaticRow(['^A', '^J', '^E', '^O', '^P', '^T', '^V']));
 
@@ -196,7 +247,15 @@
               span.style.color = `rgb(${rv}, ${gv}, ${bv})`;
             }
 
-            span.textContent = `^[F${codeDigits}]`;
+            const code = `^[F${codeDigits}]`;
+
+            span.textContent = code;
+            span.title = `Insert ${code}`;
+
+            span.addEventListener('click', () => {
+              insertAtCursor(code);
+            });
+
             rowDiv.appendChild(span);
           }
 
