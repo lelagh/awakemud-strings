@@ -83,7 +83,7 @@
     placeholder="Enter your string here..."
   ></textarea>
 
-  <div id="counter-display">Restring length: 0 / 80</div>
+  <div id="counter-display">Max restring length: 0 / 79</div>
 
   <div id="preview-container"></div>
   <br />
@@ -279,12 +279,9 @@
 
     function updateCounter(length) {
       counterDisplay.textContent =
-        `Restring length: ${length} / 80`;
+        `Max restring length: ${length} / 79`;
 
-      counterDisplay.style.color =
-        length > 80
-          ? 'rgb(255, 0, 0)'
-          : '#555';
+      span.style.color = currentCpuColor;
     }
 
     function renderRawPreview() {
@@ -327,7 +324,7 @@
           const span = document.createElement('span');
 
           span.style.color =
-            visibleCharacterCount > 80
+            visibleCharacterCount > 79
               ? 'rgb(255, 0, 0)'
               : currentCpuColor;
 
@@ -371,28 +368,17 @@
 
       if (rawPreviewToggle.checked) {
         renderRawPreview();
-        return;
-      }
-
-      const visibleCharacterCount = renderColourPreview();
-
-      updateCounter(visibleCharacterCount);
-    }
-
-    function handleInput() {
-      resizeInput();
-
-      previewContainer.innerHTML = '';
-
-      if (rawPreviewToggle.checked) {
-        renderRawPreview();
         updateCounter(inputField.value.length);
         return;
       }
 
       const visibleCharacterCount = renderColourPreview();
-
       updateCounter(visibleCharacterCount);
+    }
+
+    function handleInput() {
+      resizeInput();
+      updatePreview();
     }
 
     generateColorMatrix();
