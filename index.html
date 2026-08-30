@@ -13,8 +13,12 @@
     #user-input {
       width: 100%;
       padding: 8px;
+      font-family: sans-serif;
       font-size: 16px;
+      line-height: normal;
       box-sizing: border-box;
+      resize: none;
+      overflow-y: hidden;
     }
     #raw-preview-toggle {
       margin-top: 10px;
@@ -62,35 +66,33 @@
       text-decoration: underline;
       filter: brightness(1.25);
     }
+    .static-row {
+      margin-left: 1ch;
+    }
+    .static-row .matrix-cell {
+      margin-right: 4ch;
+    }
   </style>
 </head>
 <body>
 
   <h3>AwakeMUD Colour Code Preview</h3>
-  <input
-    type="text"
+  <textarea
     id="user-input"
+    rows="1"
     placeholder="Enter your string here..."
-  />
+  ></textarea>
 
   <div id="counter-display">Restring length: 0 / 80</div>
 
   <div id="preview-container"></div>
   <br />
   <div>
-    You can use all the usual MUD colours (references below). The preview 
-    will be updated in real time, but please note this is an approximation
-    of the MUD colours and, depending on your client, browser, monitor, etc,
-    the preview might (probably might) look slightly different compared to
-    how it would appear in-game (in Mudlet, and so on).
-  </div>
-  <br />
-  <div>
-  <label>
-    <input type="checkbox" id="raw-preview-toggle">
-    Check here to display the preview as a sharable string for <strong>OSAY</strong>,
-    <strong>TELL</strong> etc.
-  </label>
+    You can use all the usual MUD colours (references below), typing enter will
+    create a new line in the preview area for things like descriptions, rooms and
+    the like. The preview text and colours will be updated in real time, but
+    depending on your client, browser, monitor, etc, the preview might (probably might)
+    look slightly different compared to how it would appear in-game (in Mudlet, and so on).
   </div>
   <br />
   <div>
@@ -99,6 +101,14 @@
     selected, it will be replaced. If you double click the input text to <em>only</em> 
     highlight a <code>Fxxx</code> code and click a code below, it should just replace
     the code without adding extra <code>^[ ]</code> characters.
+  </div>
+  <br />
+  <div>
+  <label>
+    <input type="checkbox" id="raw-preview-toggle">
+    Check here to display the preview as a sharable string for <strong>OSAY</strong>,
+    <strong>TELL</strong> etc.
+  </label>
   </div>
 
   <div id="matrix-container"></div>
@@ -165,6 +175,11 @@
       'g'
     );
 
+    function resizeInput() {
+      inputField.style.height = 'auto';
+      inputField.style.height = `${inputField.scrollHeight}px`;
+    }
+
     function insertAtCursor(text) {
       inputField.focus();
 
@@ -222,30 +237,28 @@
     function generateColorMatrix() {
       matrixContainer.innerHTML = '';
 
-      matrixContainer.appendChild(buildStaticRow(['^l', '^b', '^c', '^g', '^m', '^r', '^y', '^w', '^n']));
-      matrixContainer.appendChild(buildStaticRow(['^L', '^B', '^C', '^G', '^M', '^R', '^Y', '^W', '^N']));
-      matrixContainer.appendChild(buildStaticRow(['^a', '^j', '^e', '^o', '^p', '^t', '^v']));
-      matrixContainer.appendChild(buildStaticRow(['^A', '^J', '^E', '^O', '^P', '^T', '^V']));
+      matrixContainer.appendChild(buildStaticRow(['^l', '^b', '^c', '^g', '^m', '^r', '^y', '^w']));
+      matrixContainer.appendChild(buildStaticRow(['^L', '^B', '^C', '^G', '^M', '^R', '^Y', '^W']));
+      matrixContainer.appendChild(buildStaticRow(['^a', '^j', '^e', '^o', '^p', '^t', '^v', '^n']));
+      matrixContainer.appendChild(buildStaticRow(['^A', '^J', '^E', '^O', '^P', '^T', '^V', '^N']));
 
       for (let r = 0; r <= 5; r++) {
-        for (let g = 0; g <= 5; g++) {
+        for (let b = 0; b <= 5; b++) {
           const rowDiv = document.createElement('div');
           rowDiv.className = 'matrix-row';
 
-          for (let b = 0; b <= 5; b++) {
+          for (let g = 0; g <= 5; g++) {
+            const codeDigits = `${r}${g}${b}`;
             const span = document.createElement('span');
             span.className = 'matrix-cell';
-            const codeDigits = `${r}${g}${b}`;
+            const rv = colourValues[r];
+            const gv = colourValues[g];
+            const bv = colourValues[b];
 
-            if (codeDigits === '000') {
-              span.style.color = 'rgb(95, 95, 95)';
-            } else {
-              const rv = colourValues[r];
-              const gv = colourValues[g];
-              const bv = colourValues[b];
-
-              span.style.color = `rgb(${rv}, ${gv}, ${bv})`;
-            }
+            span.style.color =
+              codeDigits === '000'
+                ? 'rgb(95, 95, 95)'
+                : `rgb(${rv}, ${gv}, ${bv})`;
 
             const code = `^[F${codeDigits}]`;
 
@@ -367,6 +380,8 @@
     }
 
     function handleInput() {
+      resizeInput();
+
       previewContainer.innerHTML = '';
 
       if (rawPreviewToggle.checked) {
@@ -385,6 +400,7 @@
     inputField.addEventListener('input', handleInput);
     rawPreviewToggle.addEventListener('change', updatePreview);
 
+    resizeInput();
     updatePreview();
   </script>
 
