@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AwakeMUD Colour Codes Preview</title>
   <style>
+    html {
+      scroll-behavior: smooth;
+    }
     body {
       font-family: sans-serif;
       padding: 20px;
@@ -38,7 +41,7 @@
       box-sizing: border-box;
       overflow-wrap: break-word;
     }
-    #counter-display {
+    .counter-display, .notes-link{
       font-size: 14px;
       color: #555;
       margin-top: 5px;
@@ -72,6 +75,32 @@
     .static-row .matrix-cell {
       margin-right: 4ch;
     }
+
+    #copy-share-url {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #333;
+      font-family: sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #copy-share-url:hover {
+      background-color: #e9e9e9;
+    }
+
+    #copy-share-url:active {
+      background-color: #ddd;
+    }
+
+    #share-status {
+      margin-left: 8px;
+      font-size: 14px;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -83,26 +112,13 @@
     placeholder="Enter your string here..."
   ></textarea>
 
-  <div id="counter-display">Max restring length: 0 / 79</div>
+  <div>
+    <span id="counter-display" class="counter-display">Max restring length: 0 / 79 </span>
+    <span class="notes-link"><em>(<a href="#notes">Notes</a>)</em></span>
+  </div>
 
   <div id="preview-container"></div>
-  <br />
-  <div>
-    You can use all the usual MUD colours (references below), typing enter will
-    create a new line in the preview area for things like descriptions, rooms and
-    the like. The preview text and colours will be updated in real time, but
-    depending on your client, browser, monitor, etc, the preview might (probably might)
-    look slightly different compared to how it would appear in-game (in Mudlet, and so on).
-  </div>
-  <br />
-  <div>
-    You can click any of the codes below to copy them into the input box
-    wherever the current position of the cursor is. If any text is currently
-    selected, it will be replaced. If you double click the input text to <em>only</em> 
-    highlight a <code>Fxxx</code> code and click a code below, it should just replace
-    the code without adding extra <code>^[ ]</code> characters.
-  </div>
-  <br />
+
   <div>
   <label>
     <input type="checkbox" id="raw-preview-toggle">
@@ -111,7 +127,30 @@
   </label>
   </div>
 
+  <div>
+  <button id="copy-share-url" type="button">
+    Copy shareable link
+  </button>
+
+  <span id="share-status" aria-live="polite"></span>
+  </div>
   <div id="matrix-container"></div>
+  <br />
+  <div id = "notes">
+    You can use all the usual MUD colours, typing enter will
+    create a new line in the preview area for things like descriptions, rooms and
+    the like. The preview text and colours will be updated in real time, but
+    depending on your client, browser, monitor, etc, the preview might (probably might)
+    look slightly different compared to how it would appear in-game (in Mudlet, and so on).
+    Clicking any of the codes will copy them into the input box
+    wherever the current position of the cursor is. If any text is currently
+    selected, it will be replaced. If you double click the input text to <em>only</em> 
+    highlight a <code>Fxxx</code> code and click a code below, it should just replace
+    the code without adding extra <code>^[ ]</code> characters.
+    <br />
+    <br />
+    <a href="#"><em>Back to top</em></a>
+  </div>  
 
   <script>
     const inputField = document.getElementById('user-input');
@@ -119,6 +158,8 @@
     const previewContainer = document.getElementById('preview-container');
     const counterDisplay = document.getElementById('counter-display');
     const matrixContainer = document.getElementById('matrix-container');
+    const copyShareUrlButton = document.getElementById('copy-share-url');
+    const shareStatus = document.getElementById('share-status');
 
     const colourValues = new Array(0, 95, 135, 175, 215, 255);
 
@@ -232,6 +273,51 @@
       });
 
       return rowDiv;
+    }
+
+    function loadInputFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const sharedText = params.get('string');
+
+      if (sharedText !== null) {
+        inputField.value = sharedText;
+      }
+    }
+
+    let shareStatusTimeout;
+
+    async function copyShareableUrl() {
+    const string = inputField.value;
+
+      if (string.length > 2048) {
+        shareStatus.textContent =
+          `The link would be too long, and the MUD won't accept more than 2048 characters as input.`;
+
+        clearTimeout(shareStatusTimeout);
+        shareStatusTimeout = setTimeout(() => {
+          shareStatus.textContent = '';
+        }, 5000);
+
+        return;
+      }
+
+      const url = new URL(window.location.href);
+
+      url.search = '';
+      url.searchParams.set('string', inputField.value);
+
+      try {
+        await navigator.clipboard.writeText(url.href);
+
+        shareStatus.textContent = 'Link was copied to the clipboard!';
+        clearTimeout(shareStatusTimeout);
+
+        shareStatusTimeout = setTimeout(() => {
+          shareStatus.textContent = '';
+        }, 5000);
+      } catch {
+        window.prompt('Copy this link:', url.href);
+      }
     }
 
     function generateColorMatrix() {
@@ -385,7 +471,9 @@
 
     inputField.addEventListener('input', handleInput);
     rawPreviewToggle.addEventListener('change', updatePreview);
+    copyShareUrlButton.addEventListener('click', copyShareableUrl);
 
+    loadInputFromUrl();
     resizeInput();
     updatePreview();
   </script>
