@@ -133,6 +133,25 @@
       font-size: 14px;
       color: #555;
     }
+
+    #export-preview-png {
+      padding: 8px 12px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #333;
+      font-family: sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #export-preview-png:hover {
+      background-color: #e9e9e9;
+    }
+
+    #export-preview-png:active {
+      background-color: #ddd;
+    }
   </style>
 </head>
 
@@ -171,6 +190,11 @@
       Copy shareable link
     </button>
 
+  <button id="export-preview-png" type="button">
+   Save preview as PNG
+  </button>
+
+
     <select id="column-count" aria-label="Number of XTERM code columns">
       <option value="1">1 column</option>
       <option value="2">2 columns</option>
@@ -200,6 +224,7 @@
     <a href="#"><em>Back to top</em></a>
   </div>  
 
+  <script src="js/html2canvas.min.js"></script>
   <script>
     const inputField = document.getElementById('user-input');
     const rawPreviewToggle = document.getElementById('raw-preview-toggle');
@@ -209,6 +234,8 @@
     const matrixContainer = document.getElementById('matrix-container');
     const copyShareUrlButton = document.getElementById('copy-share-url');
     const shareStatus = document.getElementById('share-status');
+    const exportPreviewPngButton = document.getElementById('export-preview-png');
+
 
     const colourValues = [0, 95, 135, 175, 215, 255];
 
@@ -455,6 +482,103 @@
       }
     }
 
+    async function exportPreviewAsPng() {
+      const scale = window.devicePixelRatio || 1;
+
+      const canvas = await html2canvas(previewContainer, {
+        backgroundColor: '#000000',
+        scale,
+        useCORS: true
+      });
+
+      const context = canvas.getContext('2d');
+      const imageData = context.getImageData(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      const pixels = imageData.data;
+
+      let firstUsedX = canvas.width;
+      let lastUsedX = -1;
+
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const index = (y * canvas.width + x) * 4;
+
+          const red = pixels[index];
+          const green = pixels[index + 1];
+          const blue = pixels[index + 2];
+          const alpha = pixels[index + 3];
+
+          if (
+            alpha > 0 &&
+            (red > 5 || green > 5 || blue > 5)
+          ) {
+            firstUsedX = Math.min(firstUsedX, x);
+            lastUsedX = Math.max(lastUsedX, x);
+          }
+        }
+      }
+
+      if (lastUsedX === -1) {
+        downloadCanvas(canvas);
+        return;
+      }
+
+      const horizontalPadding = 15 * scale;
+
+      const cropStartX = Math.max(
+        0,
+        firstUsedX - horizontalPadding
+      );
+
+      const cropEndX = Math.min(
+        canvas.width,
+        lastUsedX + horizontalPadding + 1
+      );
+
+      const croppedWidth = cropEndX - cropStartX;
+
+      const croppedCanvas = document.createElement('canvas');
+      croppedCanvas.width = croppedWidth;
+      croppedCanvas.height = canvas.height;
+
+      const croppedContext = croppedCanvas.getContext('2d');
+
+      croppedContext.fillStyle = '#000000';
+      croppedContext.fillRect(
+        0,
+        0,
+        croppedCanvas.width,
+        croppedCanvas.height
+      );
+
+      croppedContext.drawImage(
+        canvas,
+        cropStartX,
+        0,
+        croppedWidth,
+        canvas.height,
+        0,
+        0,
+        croppedWidth,
+        canvas.height
+      );
+
+      downloadCanvas(croppedCanvas);
+    }
+
+    function downloadCanvas(canvas) {
+      const link = document.createElement('a');
+
+      link.download = 'awakemud-colour-preview.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
     function updateCounter(length) {
       counterDisplay.textContent =
         `Max restring length: ${length} / 79`;
@@ -575,15 +699,14 @@
 
     inputField.addEventListener('input', handleInput);
     rawPreviewToggle.addEventListener('change', updatePreview);
-    copyShareUrlButton.addEventListener(
-      'click',
-      copyShareableUrl
-    );
+    copyShareUrlButton.addEventListener('click', copyShareableUrl);
+    exportPreviewPngButton.addEventListener('click', exportPreviewAsPng);
 
     loadInputFromUrl();
     generateColorMatrix();
     resizeInput();
     updatePreview();
+    
   </script>
 
 </body>
