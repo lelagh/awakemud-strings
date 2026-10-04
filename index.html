@@ -238,6 +238,14 @@
 
   <script src="js/html2canvas.min.js"></script>
   <script>
+    const MATRIX_COLUMNS = 'awakemud.columnCount';
+    
+    const savedColumns = localStorage.getItem(MATRIX_COLUMNS);
+    if (savedColumns) {
+      const columnCountSelect = document.getElementById('column-count');
+      columnCountSelect.value = savedColumns;
+    }
+
     const inputField = document.getElementById('user-input');
     const rawPreviewToggle = document.getElementById('raw-preview-toggle');
     const columnCountSelect = document.getElementById('column-count');
@@ -749,8 +757,10 @@
     }
 
     columnCountSelect.addEventListener(
-      'change',
-      generateColorMatrix
+      'change', (e) => {
+        localStorage.setItem(MATRIX_COLUMNS, e.target.value);
+        generateColorMatrix();
+      }
     );
 
     inputField.addEventListener('input', handleInput);
