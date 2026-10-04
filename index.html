@@ -109,7 +109,8 @@
       margin-top: 10px;
     }
     #copy-share-url,
-    #column-count {
+    #column-count,
+    #convert-xterm-to-shorthand {
       padding: 8px 12px;
       border: 1px solid #bbb;
       border-radius: 4px;
@@ -121,11 +122,13 @@
     }
 
     #copy-share-url:hover,
-    #column-count:hover {
+    #column-count:hover
+    #convert-xterm-to-shorthand:hover {
       background-color: #e9e9e9;
     }
 
-    #copy-share-url:active {
+    #copy-share-url:active,
+    #convert-xterm-to-shorthand:active {
       background-color: #ddd;
     }
 
@@ -169,6 +172,10 @@
     <span id="counter-display" class="counter-display">
       Max restring length: 0 / 79
     </span>
+    <span id="raw-counter" class="counter-display" style="margin-left:8px;">
+      With codes: 0 / 256
+    </span>
+
 
     <span class="notes-link">
       <em>(<a href="#notes">Notes</a>)</em>
@@ -189,10 +196,13 @@
       Copy shareable link
     </button>
 
-  <button id="export-preview-png" type="button">
-   Save preview as PNG
-  </button>
+    <button id="export-preview-png" type="button">
+      Save preview as PNG
+    </button>
 
+     <button id="convert-xterm-to-shorthand" type="button">
+      Minify XTERM codes
+    </button>
 
     <select id="column-count" aria-label="Number of XTERM code columns">
       <option value="1">1 column</option>
@@ -237,6 +247,7 @@
     const copyShareUrlButton = document.getElementById('copy-share-url');
     const shareStatus = document.getElementById('share-status');
     const exportPreviewPngButton = document.getElementById('export-preview-png');
+    const minifyButton = document.getElementById('convert-xterm-to-shorthand');
 
 
     const colourValues = [0, 95, 135, 175, 215, 255];
@@ -260,6 +271,41 @@
       PINK: 'rgb(175,0,95)', BOLD_PINK: 'rgb(255,0,135)',
       TAN: 'rgb(135,95,0)', BOLD_TAN: 'rgb(175,135,95)',
       VIOLET: 'rgb(95,0,215)', BOLD_VIOLET: 'rgb(135,0,255)'
+    };
+
+    const shorthandMappings = {
+      '^[F111]': '^l',
+      '^[F014]': '^b',
+      '^[F033]': '^c',
+      '^[F030]': '^g',
+      '^[F303]': '^m',
+      '^[F300]': '^r',
+      '^[F330]': '^y',
+      '^[F333]': '^w',
+
+      '^[F222]': '^L',
+      '^[F035]': '^B',
+      '^[F055]': '^C',
+      '^[F050]': '^G',
+      '^[F505]': '^M',
+      '^[F500]': '^R',
+      '^[F550]': '^Y',
+      '^[F555]': '^W',
+
+      '^[F014]': '^a',
+      '^[F025]': '^A',
+      '^[F031]': '^j',
+      '^[F052]': '^J',
+      '^[F140]': '^e',
+      '^[F250]': '^E',
+      '^[F520]': '^o',
+      '^[F530]': '^O',
+      '^[F201]': '^p',
+      '^[F503]': '^P',
+      '^[F210]': '^t',
+      '^[F321]': '^T',
+      '^[F104]': '^v',
+      '^[F305]': '^V'
     };
 
     const codeMappings = {
@@ -581,9 +627,13 @@
       link.click();
     }
 
-    function updateCounter(length) {
+    function updateCounter(length, rawLength = inputField.value.length) {
       counterDisplay.textContent =
         `Max restring length: ${length} / 79`;
+      const rawCounter = document.getElementById('raw-counter');
+      if (rawCounter) {
+        rawCounter.textContent = `With codes: ${rawLength} / 256`;
+      }
     }
 
     function renderRawPreview() {
@@ -626,11 +676,6 @@
       parts.forEach(part => {
         if (part === '\u0000') {
           const span = document.createElement('span');
-
-          span.style.color =
-            visibleCharacterCount > 79
-              ? 'rgb(255, 0, 0)'
-              : currentCpuColor;
 
           span.textContent = '^';
           previewContainer.appendChild(span);
@@ -681,17 +726,26 @@
 
       if (rawPreviewToggle.checked) {
         renderRawPreview();
-        updateCounter(inputField.value.length);
+        updateCounter(inputField.value.length, inputField.value.length);
         return;
       }
 
       const visibleCharacterCount = renderColourPreview();
-      updateCounter(visibleCharacterCount);
+      updateCounter(visibleCharacterCount, inputField.value.length);
     }
 
     function handleInput() {
       resizeInput();
       updatePreview();
+    }
+
+    function handleMinify() {
+      const input = document.getElementById('user-input');
+      if (!input) return;
+      input.value = input.value.replace(/\^\[F[0-5]{3}\]/g, match => {
+        return shorthandMappings[match] || match;
+      });
+      input.dispatchEvent(new Event('input'));
     }
 
     columnCountSelect.addEventListener(
@@ -703,6 +757,7 @@
     rawPreviewToggle.addEventListener('change', updatePreview);
     copyShareUrlButton.addEventListener('click', copyShareableUrl);
     exportPreviewPngButton.addEventListener('click', exportPreviewAsPng);
+    minifyButton.addEventListener('click', handleMinify);
 
     loadInputFromUrl();
     generateColorMatrix();
