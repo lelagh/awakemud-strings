@@ -186,7 +186,11 @@
     </button>
 
      <button id="convert-xterm-to-shorthand" type="button">
-      Minify XTERM codes
+      Minify codes
+    </button>
+
+     <button id="strip-colour-codes" type="button">
+      Remove codes
     </button>
 
     <select id="column-count" aria-label="Number of XTERM code columns">
@@ -241,7 +245,7 @@
     const shareStatus = document.getElementById('share-status');
     const exportPreviewPngButton = document.getElementById('export-preview-png');
     const minifyButton = document.getElementById('convert-xterm-to-shorthand');
-
+    const stripButton = document.getElementById('strip-colour-codes');
 
     const colourValues = [0, 95, 135, 175, 215, 255];
 
@@ -741,6 +745,16 @@
       input.dispatchEvent(new Event('input'));
     }
 
+    function handleStrip() {
+      const input = document.getElementById('user-input');
+      if (!input) return;
+      input.value = input.value.replace(
+        /\^[lLbBcCgGmMrRyYwWaAjJeEoOpPtTvVnN]|\^\[F[0-5]{3}\]/g,
+        ''
+      );
+      input.dispatchEvent(new Event('input'));
+    }
+    
     columnCountSelect.addEventListener(
       'change', (e) => {
         localStorage.setItem(MATRIX_COLUMNS, e.target.value);
@@ -753,6 +767,7 @@
     copyShareUrlButton.addEventListener('click', copyShareableUrl);
     exportPreviewPngButton.addEventListener('click', exportPreviewAsPng);
     minifyButton.addEventListener('click', handleMinify);
+    stripButton.addEventListener('click', handleStrip);
 
     loadInputFromUrl();
     generateColorMatrix();
